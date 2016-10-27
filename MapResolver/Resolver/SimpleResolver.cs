@@ -7,13 +7,12 @@
 
     public class SimpleResolver : IResolver
     {
-        public IEnumerable<IMap> TryResolveProperties(IEnumerable<PropertyInfo> targetProperties, IEnumerable<PropertyInfo> sourceProperties)
+        public IEnumerable<PropertyMap> TryResolveProperties(IEnumerable<PropertyInfo> targetProperties, IEnumerable<PropertyInfo> sourceProperties)
         {
             return (from s in sourceProperties
                     from t in targetProperties
-                    where s.Name == t.Name &&
-                          s.PropertyType == t.PropertyType
-                    select new SimpleMap
+                    where s.Name == t.Name && s.PropertyType == t.PropertyType
+                    select new SimplePropertyMap
                     {
                         SourceProperty = s,
                         TargetProperty = t

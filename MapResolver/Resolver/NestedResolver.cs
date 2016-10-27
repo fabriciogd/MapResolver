@@ -8,31 +8,30 @@
 
     public class NestedResolver : IResolver
     {
-        public IEnumerable<IMap> TryResolveProperties(IEnumerable<PropertyInfo> targetProperties, IEnumerable<PropertyInfo> sourceProperties)
+        public IEnumerable<PropertyMap> TryResolveProperties(IEnumerable<PropertyInfo> targetProperties, IEnumerable<PropertyInfo> sourceProperties)
         {
-            List<NestedMap> properties = new List<NestedMap>();
+            List<NestedPropertyMap> properties = new List<NestedPropertyMap>();
 
-            foreach (var remainingProperty in targetProperties)
+            foreach (var targetProperty in targetProperties)
             {
-                if (remainingProperty.Name.Contains("_"))
+                if (targetProperty.Name.Contains("_"))
                 {
-                    NestedMap nestedPropertyMap = new NestedMap() { TargetProperty = remainingProperty };
-                    string[] nestedMemberNames = remainingProperty.Name.Split('_');
+                    NestedPropertyMap map = new NestedPropertyMap() { TargetProperty = targetProperty };
+                    string[] memberNames = targetProperty.Name.Split('_');
 
-                    IEnumerable<PropertyInfo> propertiesInScope = sourceProperties;
 
-                    foreach (string memberName in nestedMemberNames)
+                    foreach (string memberName in memberNames)
                     {
-                        PropertyInfo propertyMember = propertiesInScope.SingleOrDefault(s => s.Name == memberName);
+                        PropertyInfo propertyMember = sourceProperties.SingleOrDefault(s => s.Name == memberName);
                         if (propertyMember != null)
                         {
-                            nestedPropertyMap.NestedProperties.Add(propertyMember);
-                            propertiesInScope = propertyMember.PropertyType.GetProperties();
+                            map.NestedProperties.Add(propertyMember);
+                            sourceProperties = propertyMember.PropertyType.GetProperties();
                         }
                     }
 
-                    if (nestedMemberNames.Length == nestedPropertyMap.NestedProperties.Count)
-                        properties.Add(nestedPropertyMap);
+                    if (memberNames.Length == map.NestedProperties.Count)
+                        properties.Add(map);
                 }
             }
 

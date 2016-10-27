@@ -12,7 +12,7 @@
 
             DTODePessoa dto = new DTODePessoa();
 
-            MapResolver.Instance.Transform<Pessoa, DTODePessoa>(pessoa, dto);
+            MapResolver.Instance.Map<Pessoa, DTODePessoa>(pessoa, dto);
 
             Assert.AreEqual(1, dto.Codigo);
             Assert.AreEqual("Industrial", dto.Endereco_Bairro);

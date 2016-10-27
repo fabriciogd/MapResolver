@@ -3,13 +3,11 @@
     using System.Reflection;
     using System.Reflection.Emit;
 
-    public class SimpleMap : IMap
+    public class SimplePropertyMap : PropertyMap
     {
         public PropertyInfo SourceProperty { get; set; }
 
-        public PropertyInfo TargetProperty { get; set; }
-
-        public void BuildIL(ILGenerator il)
+        public override void BuildIL(ILGenerator il)
         {
             il.Emit(OpCodes.Ldarg_1);
             il.Emit(OpCodes.Ldarg_0);

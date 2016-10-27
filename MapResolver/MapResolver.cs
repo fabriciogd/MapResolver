@@ -30,41 +30,36 @@
             }
         }
 
-        private IList<IResolver> _propertyMapResolvers;
         private delegate TTarget Resolver<TSource, TTarget>(TSource source, TTarget target);
-        private readonly Dictionary<string, object> _delegatesDictionary = new Dictionary<string, object>();
+
+        private readonly IList<IResolver> _resolvers = new List<IResolver>();
+        private readonly Dictionary<string, object> _delegates = new Dictionary<string, object>();
 
         public MapResolver()
         {
-            this._propertyMapResolvers = new List<IResolver>();
-            this.AddResolver(new SimpleResolver());
             this.AddResolver(new NestedResolver());
+            this.AddResolver(new SimpleResolver());
         }
 
         public MapResolver AddResolver(IResolver propertyMapResolver)
         {
-            this._propertyMapResolvers.Add(propertyMapResolver);
+            this._resolvers.Add(propertyMapResolver);
             return this;
         }
 
         protected string GetMapKey<TSource, TTarget>()
         {
-            var className = "Copy_";
-            className += typeof(TSource).FullName.Replace(".", "_");
-            className += "_";
-            className += typeof(TTarget).FullName.Replace(".", "_");
-
-            return className;
+            return $"{typeof(TSource).FullName.Replace(".", "_")}_{typeof(TTarget).FullName.Replace(".", "_")}";
         }
 
-        protected List<IMap> GetMapProperties<TSource, TTarget>()
+        protected List<PropertyMap> ResolveProperties<TSource, TTarget>()
         {
             var targetProperties = typeof(TTarget).GetProperties().Where(t => t.CanWrite);
             var sourceProperties = typeof(TSource).GetProperties().Where(s => s.CanRead);
 
-            List<IMap> mappedProperties = new List<IMap>();
+            List<PropertyMap> mappedProperties = new List<PropertyMap>();
 
-            foreach (var propertyMapResolver in this._propertyMapResolvers)
+            foreach (var propertyMapResolver in this._resolvers)
             {
                 var propertiesResolved = propertyMapResolver.TryResolveProperties(targetProperties, sourceProperties);
                 mappedProperties.AddRange(propertiesResolved);
@@ -73,7 +68,7 @@
             return mappedProperties;
         }
 
-        protected void MapTypes<TSource, TTarget>(IList<IMap> maps, string key)
+        protected void MapProperties<TSource, TTarget>(IList<PropertyMap> maps, string key)
         {
             var source = typeof(TSource);
             var target = typeof(TTarget);
@@ -91,38 +86,40 @@
 
             var del = dynamicMethod.CreateDelegate(typeof(Resolver<TSource, TTarget>));
 
-            this._delegatesDictionary.Add(key, del);
+            this._delegates.Add(key, del);
         }
 
-        protected void MapTypes<TSource, TTarget>(string key)
+        protected void MapProperties<TSource, TTarget>(string key)
         {
-            var maps = this.GetMapProperties<TSource, TTarget>();
-            this.MapTypes<TSource, TTarget>(maps, key);
-        }
-
-        private bool DelegateKeyExists(string key)
-        {
-            return this._delegatesDictionary.ContainsKey(key);
+            var maps = this.ResolveProperties<TSource, TTarget>();
+            this.MapProperties<TSource, TTarget>(maps, key);
         }
 
         private Resolver<TSource, TTarget> GetDelegate<TSource, TTarget>()
         {
             var key = this.GetMapKey<TSource, TTarget>();
 
-            if (!this.DelegateKeyExists(key))
-                this.MapTypes<TSource, TTarget>(key);
+            if (!this._delegates.ContainsKey(key))
+                this.MapProperties<TSource, TTarget>(key);
 
-            return (Resolver<TSource, TTarget>)_delegatesDictionary[key];
+            return (Resolver<TSource, TTarget>)_delegates[key];
         }
 
-
-        public void Transform<TSource, TTarget>(TSource source, TTarget target)
+        public void Map<TSource, TTarget>(TSource source, TTarget target)
         {
             var del = this.GetDelegate<TSource, TTarget>();
             del.Invoke(source, target);
         }
 
-        public void Transform<TSource, TTarget>(IEnumerable<TSource> source, IList<TTarget> target)
+        public TTarget Map<TSource, TTarget>(TSource source)
+            where TTarget : new()
+        {
+            TTarget target = new TTarget();
+            this.Map(source, target);
+            return target;
+        }
+
+        public void MapCollection<TSource, TTarget>(IEnumerable<TSource> source, IList<TTarget> target)
             where TTarget : new()
         {
             var del = this.GetDelegate<TSource, TTarget>();
@@ -135,5 +132,19 @@
                 target.Add(targetElement);
             }
         }
+
+        public IEnumerable<TTarget> MapCollection<TSource, TTarget>(IEnumerable<TSource> source)
+            where TTarget : new()
+        {
+            var del = this.GetDelegate<TSource, TTarget>();
+
+            IEnumerator<TSource> sourceEnumerator = source.GetEnumerator();
+            while (sourceEnumerator.MoveNext())
+            {
+                TTarget targetElement = new TTarget();
+                yield return del(sourceEnumerator.Current, targetElement);
+            }
+        }
+
     }
 }
